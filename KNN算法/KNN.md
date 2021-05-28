@@ -1,6 +1,6 @@
 [toc]
 
-# KNN(K近邻算法)
+# KNN (K近邻算法)
 
 两个样本如果足够相似的话，那么它就是属于这个类别的。
 
@@ -70,9 +70,9 @@ def KNN_classify(k, X_train, y_train, x):
     # 设置断言来保证用户的输入正确
     assert 1 <= k <= X_trian.shape[0],"k must be vaild"
     assert X_train.shape[0] == y_trian.shape[0],\
-    "the size of X_trian must equal to the size of y_train"
+    	"the size of X_trian must equal to the size of y_train"
     assert X_train.shape[1] == x.shape[0], \
-    "the feature number of x must be equal to X_trian"
+    	"the feature number of x must be equal to X_trian"
     
     distances = [sqrt(np.sum((X_train-x)**2)) for x_train in x_train]
     nearest = np.argsort(distance)
@@ -132,16 +132,16 @@ class KNNClassifier:
     def predict(self,X_predict)
     	'''给定待预测数据集X_predict，返回表示X_predict的结果向量'''
         assert self.__X_train is not None and self.__y_train is not None,\
-        "must fit before predict"
+        	"must fit before predict"
         assert X_predict.shape[1] == self.__X_train.shape[1], \
-        '''the feature number of X_predict must be equal to X_train'''
+        	"the feature number of X_predict must be equal to X_train"
     	y_predict = [self.__predict(x) for x in X_predict]
         
         return np.array(y_predict)
         
     def self.__predict(self,x):
         assert x.shape[0] == self.__X_train.shape[1] , \
-        "the feature number of x must be equal to X_trian"
+        	"the feature number of x must be equal to X_trian"
 
         distances = [sqrt(np.sum((X_train-x)**2)) for x_train in x_train]
         nearest = np.argsort(distance)
@@ -151,13 +151,74 @@ class KNNClassifier:
     
    	def __repr__(self):
         return "KNN(k=%d)" % self.k
-    
-        
 ```
 
 对于上述代码，fit其实是多余的，但是为了适应scikit-learn 中的`fit`方法，我们额外写一个与其相对应的方法。
 
 `fit`方法中`return self`虽以后的学习再补充
+
+## 判断机器学习算法的性能
+
+### 数据集划分
+
+我们可以先将数据划分成**训练集和测试集**，在训练集中训练，模型训练好后，我们来用测试集来进行算法评估。
+
+常见的方法是调用scikit-learn中的`train_test_split`
+
+我们自己实现`train_test_split`的时候要注意，一定要随机选取，因为训练集中的数据有可能已经经过排序的。我们需要将数据集随机化，但是我们不能直接乱序，因为x和y是一一对应的，对于这种情况，我们可以获取乱序后的下标。下面是代码实现
+
+`train_test_split`
+
+```python
+# 得到的是索引后元素的序列。
+shuffle_indexes = np.random.permutation(len(X))
+
+test_ratio = 0.2 # 20%的数据用来作为测试集
+test_size = int(len(X)*test_ratio)
+
+test_indexes = shuffle_indexes[:test_size] 
+train_indexes = shuffle_indexes[test_size:]
+
+X_test = X[test_indexes]
+y_test = y[test_indexes]
+
+X_train = X[train_indexes]
+y_train = y[train_indexes]
+```
+
+### train_test_split 代码封装
+
+```python
+import numpy as np
+
+def train_test_split(X, y, test_ratio=0.2, seed=None):
+    '''将数据X和y按照test_ratio分割成X_train, X_test, y_train, y_test'''
+    assert X.shape[0] == y.shape[0], \
+    	"the size of X must be equal to the size of y"
+   	assert 0.0 <= test_ratio <= 1.0, \
+    	"test_ratio must be valid"
+        
+    if seed:
+        np.random.seed(seed)
+        
+   	shuffle_indexes = np.random.permutation(len(X))
+    test_size = int(len(X)*test_ratio)
+    
+    test_indexes = shuffle_indexes[:test_size] 
+    train_indexes = shuffle_indexes[test_size:]
+
+    X_test = X[test_indexes]
+    y_test = y[test_indexes]
+
+    X_train = X[train_indexes]
+    y_train = y[train_indexes]
+    
+    return X_train, X_test, y_train, y_test
+```
+
+
+
+
 
 ## 超参数
 
