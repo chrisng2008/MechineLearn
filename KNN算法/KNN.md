@@ -34,6 +34,15 @@ $$
 
 这就是我们下面**超参数**部分提及的米科夫斯基距离。
 
+**更多距离的定义**
+
+- 向量空间余弦相似度 Cosine Similarity
+- 调整余弦相似度 Adjusted Cosine Similarity
+- 皮尔森相关系数 Pearson Correlation Coefficient
+- Jaccard相关系数 Jaccard Coefficient
+
+对于向量空间余弦相似度，我在编写基于协同过滤算法的推荐系统中有涉及，如感兴趣，请自行了解。
+
 ## KNN基础
 
 这里我们使用的距离为我们常见的**欧拉距离**
@@ -311,15 +320,201 @@ print("best_score=",best_score)
 
 ## 网络搜索与k近邻算法中更多的超参数 
 
+scikit-learn 中为我们封装了网格搜索，`Grid Search`
 
+对于scikit-learn 中网格搜索的例子，我们用网格搜索
+
+```python
+param_grid = {
+    {
+        'weights':['uniform'],
+        'n_neighbors':[i for i in range(1,11)]
+    },
+    {
+        'weights':['distance'],
+        'n_neighbors':[i for i in range(1,11)],
+        'p':[i for i in range(1,6)]
+    }
+}
+```
+
+总共的搜索次数为$5*10+10=60$
+
+```python
+knn_clf = KNeighborsClassifier()
+```
+
+网格搜索
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+grid_search = GridSearchCV(knn_clf,param_grid)
+grid_search.fit(X_train,y_train)
+```
+
+在设置好`param_grid`后我们需要`fit`，这个过程由于需要大量的计算，所以这个过程可能会有一些慢，最后我们调用`best_estimator_`这个属性，就可以搜索出来分类器最佳的超参数。
+
+`GridSearchCV`CV指的是交叉验证。
+
+对于`grid_search`我们需要了解它的其他超参数
+
+`grid_search = GridSearchCV(knn_clf, param_grisd, n_jobs=-1, verbose=2)`
+
+- **n_jobs**是用计算机多核运行的意思，比如2核，那么传入的参数为2，如果想让计算机的所有核都参与运算，那么传入的值为-1
+- **verbose**：日志冗长度，int：冗长度，0：不输出训练过程，1：偶尔输出，>1：对每个子模型都输出。
+
+更多的参数自行了解，`class sklearn.model_selection.GridSearchCV(estimator, param_grid, scoring=None, fit_params=None, n_jobs=1, iid=True, refit=True, cv=None, verbose=0, pre_dispatch=‘2\*n_jobs’, error_score=’raise’, return_train_score=’warn’)`
 
 ## 数据归一化
+
+为什么要进行归一化处理，如果出现部分的数据特别大，那么它将占主导地位
+
+|       | 肿瘤大小(cm) | 发现时间(days) |
+| ----- | ------------ | -------------- |
+| 样本1 | 1            | 200            |
+| 样本2 | 5            | 100            |
+
+在计算距离的时候，我们会发现时间会占主要地位，显然这是不合理的，所以我们要进行数据归一化
+
+|       | 肿瘤大小(cm) | 发现时间(years) |
+| ----- | ------------ | --------------- |
+| 样本1 | 1            | 0.55            |
+| 样本2 | 5            | 0.27            |
+
+以上过程就是归一化。
+
+回到正题，我们谈谈什么是**归一化**：
+
+### 最值归一化
+
+- 解决方案： 将所有的数据映射到同一尺度
+- 最值归一化： 把所有的数据映射到0-1之间
+
+$$
+x_{scale}=\frac{x-x_{min}}{x_{max}-x_{min}}
+$$
+
+适用于分布有明显边界的情况；受outlier影响较大。
+
+### 均值归一化
+
+为了解决上述的情况，我们可以采用**均值方差归一化**(standerdization)
+
+- 均值方差归一化：把所有数据诡异到均值为0方差为1的分布中
+
+适用于数据分布没有明显的边界；有可能存在极端数据值的情况
+$$
+x_{scale}=\frac{x-x_{mean}}{s}
+$$
+
+### 算法实现
+
+```python
+import numpy as np
+
+x = np.random.randint(0,100,size=100)
+# 最值归一化
+(x-np.min(x))/(np.max(x)-np.min(x))
+
+# 均值方差归一化
+# 生成一个随机矩阵
+x2 = np.random.randint(0,100,(50,2))
+# 对第0列进行均值方差归一化
+x2[:0] = (x2[:,0]-np.mean(x2[:,0]))/np.std(x2[:,0])
+```
 
 
 
 ## scikit-learn 中的Scaler
 
+### 如何对测试数据集进行归一化
+
+我们可能会用`mean_test`,`std_test`来计算，但是这样是错误的。
+
+正确的做法是用训练数据集的`mean_train`,`std_train`来进行计算
+
+``(x_test-mean_train)/std_train``
+
+**我们为社么要这样做?**
+
+测试数据是模拟真实环境
+
+- 真实环境很有可能无法得到所有测试数据的均值和方差
+- 对数据归一化也是算法的一部分
+
+所以我们是需要**保存数据集得到的均值和方差**
+
+### scikit-learn 中使用Scaler
+
+ ```python
+ from sklearn.preprocessing import StandarScaler
+ 
+ standarScaler = StandarScaler()
+ standarScaler.fit(X_train)
+ 
+ X_mean = standarScaler.mean_	#均值
+ X_std = standarScaler.std_	#标准差
+ # 使用std_会发出WARNING，因为这种做法以后会弃用，可以使用scale_来替代
+ X_scale = standarScaler.scale_	#标准差
+ X_train = standarScaler.transform(X_train)
+ 
+ # 对测试集进行归一化
+ X_test = standarScaler.transform(X_test)
+ ```
+
+### StandarScaler代码封装
+
+```python
+import numpy as np
+
+class StandarScaler: 
+    def __init__(self):
+        self.mean_=None
+        self.scale_=None
+	def fit(self, X):
+        '''根据训练数据集X获得数据的均值和方差'''
+        assert X.ndim == 2, "The dimension of X must be 2"
+        
+        self.mean_ = np.array([np.mean(X[:,i]) for i in range (X.shape[1])])
+        self.scale_ = np.array([np.std(X[:,i]) for i in range (X.shape[1])])
+        
+        return self
+    
+    def transform(self,X):
+		'''将X根据这个StandarScaler进行均值方差归一化处理'''
+        assert X.ndim == 2, "The dimension of X must be 2"
+       	assert self.mean_ is not None and self.scale_ is not None, \
+        	"must fit before transform!"
+        assert X.shape[1] == len(self.mean_),\
+        "the feature number of X must be equal to mean_ and std_"
+       	resX =np.empty(shape=X.shape, dtype=float)
+        for col in range(X.shape[1]):
+			resX[:,col] = (X[:,col] - self.mean_[col])/self.scale_[col]
+    	return resX
+```
+
 
 
 ## 更多有关k近邻算法的思考
 
+k近邻算法的优点：
+
+- 解决分类问题
+- 本身可以解决多分类问题
+- 思想简单，效果强大
+- 也可以解决回归问题
+
+在scikit-learn中也为我们封装了KNeighborsRegressor这样一个使用k近邻解决回归问题的类
+
+k近邻算法的缺点：
+
+- 效率低下
+  - 如果训练集有m个样本，n个特征，则预测每一个新的数据，需要`O(m*n)`的时间复杂度。
+  - 优化，使用树结构：KD-Tree, Ball-Tree
+- 高度数据相关
+  - 如果样本周围有几个错误的预测结果，那么准确率就会受到很大的影响
+- 预测结果不具有可解释性
+- 维数灾难
+  - 随着维度的增加，“看似相近”的两个点之间的距离越来越大
+  - 解决方法：降维 (PCA主成分分析等)
